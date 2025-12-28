@@ -9,7 +9,7 @@ AtCoderの学習記録を置く場所です。
 ## 📌 最新のAtCoder参加記録
 ## 📚 AtCoder参加記録
 ## 📝 AtCoder練習記録
-* [過去問バチャログ](./prcticelog.html)
+* [過去問バチャログ](./practicelog.html)
 ## 👤 About
 * **Name**: omochi_gyuhi
 * **Interest**: Rust,　(Python), A水H黄
