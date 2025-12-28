@@ -3,12 +3,12 @@ layout: default
 title: Home
 ---
 
-# atcoder学習記録
-ここは競技プログラミングの解説や学習記録を置く場所です。
+# AtCoderログ
+AtCoderの学習記録を置く場所です。
 
-## 📌 最新のAtCoder解説
-
-
+## 📌 最新のAtCoder参加記録
+## 📚 AtCoder参加記録
+## 📝 AtCoder練習記録
 ## 👤 About
 * **Name**: omochi_gyuhi
 * **Interest**: Rust,　(Python), A水H黄
