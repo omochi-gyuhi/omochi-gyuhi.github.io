@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>過去問バチャログ</title>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 0 10px; color: #333; }
+        h1 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        
+        /* テーブルのデザイン */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f4f4f4; white-space: nowrap; }
+        tr:hover { background-color: #f9f9f9; }
+
+        /* パフォーマンスの色定義 */
+        .perf-gray { color: #808080; font-weight: bold; }
+        .perf-brown { color: #804000; font-weight: bold; }
+        .perf-green { color: #008000; font-weight: bold; }
+        .perf-cyan { color: #00C0C0; font-weight: bold; }
+        .perf-blue { color: #0000FF; font-weight: bold; }
+        .perf-yellow { color: #C0C000; font-weight: bold; }
+        .perf-orange { color: #FF8000; font-weight: bold; }
+        .perf-red { color: #FF0000; font-weight: bold; }
+
+        /* 詳細列の見た目 */
+        .details { font-family: Consolas, monospace; font-size: 0.9em; color: #555; }
+        
+        /* スマホ対応 */
+        @media (max-width: 600px) {
+            th, td { display: block; width: 100%; box-sizing: border-box; }
+            th { display: none; } /* スマホではヘッダーを隠す */
+            td { border: none; padding: 5px 10px; }
+            tr { border-bottom: 1px solid #ccc; display: block; margin-bottom: 10px; padding-bottom: 10px; }
+            .date-cell { color: #888; font-size: 0.8em; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Virtual Contest Log</h1>
+    <div id="stats"></div>
+    <table id="log-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Contest</th>
+                <th>Result</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
+    </table>
+
+<script>
+    // ▼ここに新しいログを追記していくだけでOK▼
+    const csvData = `
+abc251,2025-12-26T20:06:03.941018,"5完 (Perf:1687) [A:1:35, B:4:38, C:9:15, D -(WA1), E:69:55, F:93:29]"
+abc364,2025-12-27T09:30:37.886226,"5完 (Perf:1563) [A:4:21, B:17:03 (WA1), C:14:37, D:46:26 (WA1), E:70:37 (WA3)]"
+abc247,2025-12-27T13:28:59.475382,"6完 (Perf:1700) [A:0:54, B:21:35 (WA1), C:11:40, D:18:16, E:44:25, F:95:35 (WA1)]"
+abc236,2025-12-27T17:16:55.806542,"5完 (Perf:1793) [A:0:49, B:2:54, C:5:23, D:74:16 (WA3), E:90:20 (WA4)]"
+abc237,2025-12-28T08:02:02.248984,"5完 (Perf:1641) [A:1:58, B:4:34, C:14:03, D:18:04, E:47:56]"
+    `;
+
+    // AtCoderの色判定関数
+    function getPerfClass(perf) {
+        if (perf < 400) return 'perf-gray';
+        if (perf < 800) return 'perf-brown';
+        if (perf < 1200) return 'perf-green';
+        if (perf < 1600) return 'perf-cyan';
+        if (perf < 2000) return 'perf-blue';
+        if (perf < 2400) return 'perf-yellow';
+        if (perf < 2800) return 'perf-orange';
+        return 'perf-red';
+    }
+
+    const tableBody = document.querySelector("#log-table tbody");
+    const lines = csvData.trim().split('\n');
+
+    // 新しい順（日付が新しいものが上）に表示したい場合は reverse() を使う
+    // lines.reverse(); 
+
+    lines.forEach(line => {
+        // 簡単なパース処理: コンマで分割するが、"..."の中身は無視するように工夫
+        // 今回のフォーマットなら正規表現で抽出するのが確実
+        const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
+        if (!match) return;
+
+        const contest = match[1];
+        const dateRaw = new Date(match[2]);
+        const fullDetail = match[3];
+
+        // 日付を読みやすく整形 (YYYY-MM-DD)
+        const dateStr = dateRaw.toISOString().split('T')[0];
+
+        // 詳細部分からPerfと完数を抽出
+        const perfMatch = fullDetail.match(/Perf:(\d+)/);
+        const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
+        
+        const solvedMatch = fullDetail.match(/(\d+)完/);
+        const solved = solvedMatch ? solvedMatch[1] : "-";
+
+        // []の中身（問題ごとの詳細）だけを取り出す
+        const detailText = fullDetail.match(/\[(.*)\]/)[1];
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td class="date-cell">${dateStr}</td>
+            <td><a href="https://atcoder.jp/contests/${contest}" target="_blank" style="text-decoration:none; color:#333; font-weight:bold;">${contest.toUpperCase()}</a></td>
+            <td>
+                ${solved}完 <span class="${getPerfClass(perf)}">Perf:${perf}</span>
+            </td>
+            <td class="details">${detailText}</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+</script>
+
+</body>
+</html>
