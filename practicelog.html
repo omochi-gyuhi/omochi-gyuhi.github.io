@@ -77,38 +77,44 @@ abc237,2025-12-28T08:02:02.248984,"5完 (Perf:1641) [A:1:58, B:4:34, C:14:03, D:
     }
 
     const tableBody = document.querySelector("#log-table tbody");
-    const lines = csvData.trim().split('\n');
+    
+    // 空行を除去して配列化
+    const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
 
-    // 新しい順（日付が新しいものが上）に表示したい場合は reverse() を使う
-    // lines.reverse(); 
-
-    lines.forEach(line => {
-        // 簡単なパース処理: コンマで分割するが、"..."の中身は無視するように工夫
-        // 今回のフォーマットなら正規表現で抽出するのが確実
+    // データをパースしてオブジェクトの配列にする
+    const parsedData = lines.map(line => {
         const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
-        if (!match) return;
-
+        if (!match) return null;
+        
         const contest = match[1];
         const dateRaw = new Date(match[2]);
         const fullDetail = match[3];
 
+        return { contest, dateRaw, fullDetail };
+    }).filter(item => item !== null);
+
+    // ★ここで日付順（新しい順）にソートしています★
+    parsedData.sort((a, b) => b.dateRaw - a.dateRaw);
+
+    // 描画処理
+    parsedData.forEach(item => {
         // 日付を読みやすく整形 (YYYY-MM-DD)
-        const dateStr = dateRaw.toISOString().split('T')[0];
+        const dateStr = item.dateRaw.toISOString().split('T')[0];
 
         // 詳細部分からPerfと完数を抽出
-        const perfMatch = fullDetail.match(/Perf:(\d+)/);
+        const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
         const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
         
-        const solvedMatch = fullDetail.match(/(\d+)完/);
+        const solvedMatch = item.fullDetail.match(/(\d+)完/);
         const solved = solvedMatch ? solvedMatch[1] : "-";
 
-        // []の中身（問題ごとの詳細）だけを取り出す
-        const detailText = fullDetail.match(/\[(.*)\]/)[1];
+        // []の中身だけを取り出す
+        const detailText = item.fullDetail.match(/\[(.*)\]/)[1];
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td class="date-cell">${dateStr}</td>
-            <td><a href="https://atcoder.jp/contests/${contest}" target="_blank" style="text-decoration:none; color:#333; font-weight:bold;">${contest.toUpperCase()}</a></td>
+            <td><a href="https://atcoder.jp/contests/${item.contest}" target="_blank" style="text-decoration:none; color:#333; font-weight:bold;">${item.contest.toUpperCase()}</a></td>
             <td>
                 ${solved}完 <span class="${getPerfClass(perf)}">Perf:${perf}</span>
             </td>
