@@ -76,84 +76,47 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
     const MAX_TIME = 100;      // コンテスト終了時間（分）
     const SPLIT_POS = 33.33;   // 画面上の境界位置（％）
 
-    // --- 座標変換関数 ---
-    // 実際の時間(t)を、グラフ上の0-100の座標(v)に変換する
+    // --- 座標変換関数 (省略せず記載) ---
     function timeToVisual(t) {
         if (t <= 0) return 0;
-        
-        // 前半: 0.5分～10分を 対数で 0～33.3 にマッピング
-        // log(0)は無限大になるので、最小値(minLogTime)を0.5分あたりに設定
         const minLogTime = 0.5; 
         if (t <= SPLIT_TIME) {
-            // tが0.5未満の場合は0扱いにクリップ（または微小値）
             const safeT = Math.max(t, minLogTime);
             const logMin = Math.log10(minLogTime);
             const logMax = Math.log10(SPLIT_TIME);
             const logT = Math.log10(safeT);
-            
-            // 正規化 (0.0 ~ 1.0)
             const ratio = (logT - logMin) / (logMax - logMin);
             return ratio * SPLIT_POS;
-        } 
-        // 後半: 10分～100分を リニアで 33.3～100 にマッピング
-        else {
+        } else {
             const ratio = (t - SPLIT_TIME) / (MAX_TIME - SPLIT_TIME);
             return SPLIT_POS + (ratio * (100 - SPLIT_POS));
         }
     }
 
-    // 逆変換: グラフ上の座標(v)から表示用の時間ラベルを返す（目盛り用）
-    function visualToTime(v) {
-        // 誤差許容
-        if (v < 0) return 0;
-        
-        if (v <= SPLIT_POS + 0.01) {
-            const minLogTime = 0.5;
-            const logMin = Math.log10(minLogTime);
-            const logMax = Math.log10(SPLIT_TIME);
-            const ratio = v / SPLIT_POS;
-            // logT = ratio * (max - min) + min
-            const logT = ratio * (logMax - logMin) + logMin;
-            return Math.pow(10, logT);
-        } else {
-            const ratio = (v - SPLIT_POS) / (100 - SPLIT_POS);
-            return SPLIT_TIME + (ratio * (MAX_TIME - SPLIT_TIME));
-        }
-    }
-
-
-    // --- データ処理 ---
+    // --- データ処理 (省略せず記載) ---
     const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
     const parsedData = lines.map(line => {
         const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
         if (!match) return null;
-        
         const contest = match[1].toUpperCase();
         const dateDisplay = match[2].split('T')[0];
         const dateObj = new Date(match[2]); 
         const fullDetail = match[3];
-
         const problems = [];
         const problemMatches = fullDetail.matchAll(/([A-Z]):(\d+):(\d+)/g);
         for (const m of problemMatches) {
-            const probName = m[1];
-            const minutes = parseInt(m[2]) + parseInt(m[3]) / 60;
-            const label = `${m[2]}:${m[3]}`;
-            
             problems.push({ 
-                probName, 
-                minutes, // 本来の時間
-                visualX: timeToVisual(minutes), // 描画用の座標
-                label 
+                probName: m[1], 
+                minutes: parseInt(m[2]) + parseInt(m[3]) / 60,
+                visualX: timeToVisual(parseInt(m[2]) + parseInt(m[3]) / 60),
+                label: `${m[2]}:${m[3]}`
             });
         }
-
         return { contest, dateDisplay, dateObj, fullDetail, problems };
     }).filter(item => item !== null);
-
     parsedData.sort((a, b) => b.dateObj - a.dateObj);
 
-    // --- テーブル描画 ---
+    // --- テーブル描画 (省略せず記載) ---
     function getPerfClass(perf) {
         if (perf < 400) return 'perf-gray';
         if (perf < 800) return 'perf-brown';
@@ -164,7 +127,6 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
         if (perf < 2800) return 'perf-orange';
         return 'perf-red';
     }
-
     const tableBody = document.querySelector("#log-table tbody");
     parsedData.forEach(item => {
         const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
@@ -172,7 +134,6 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
         const solvedMatch = item.fullDetail.match(/(\d+)完/);
         const solved = solvedMatch ? solvedMatch[1] : "-";
         const detailText = item.fullDetail.match(/\[(.*)\]/)[1];
-
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td class="date-cell">${item.dateDisplay}</td>
@@ -187,36 +148,49 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
     const ctx = document.getElementById('timelineChart').getContext('2d');
     const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
 
-    const problemColors = {
-        'A': '#888888', 'B': '#8d6e63', 'C': '#66bb6a', 'D': '#4dd0e1',
-        'E': '#29b6f6', 'F': '#fdd835', 'G': '#ffa726', 'H': '#ef5350'
+    // ▼▼▼ 色設定の変更箇所 ▼▼▼
+    // A=白(枠あり), B=灰, C=茶, D=緑... のスタイル定義
+    const problemStyles = {
+        'A': { bg: '#ffffff', border: '#888888' }, // 白（枠はグレー）
+        'B': { bg: '#808080', border: '#808080' }, // 灰
+        'C': { bg: '#804000', border: '#804000' }, // 茶
+        'D': { bg: '#008000', border: '#008000' }, // 緑
+        'E': { bg: '#00C0C0', border: '#00C0C0' }, // 水
+        'F': { bg: '#0000FF', border: '#0000FF' }, // 青
+        'G': { bg: '#C0C000', border: '#C0C000' }, // 黄
+        'H': { bg: '#FF8000', border: '#FF8000' }  // 橙
     };
 
-    const datasets = ['A','B','C','D','E','F','G','H'].map(p => ({
-        label: `Problem ${p}`,
-        data: [],
-        backgroundColor: problemColors[p] || '#000',
-        pointRadius: 6,
-        pointHoverRadius: 8
-    }));
+    const datasets = ['A','B','C','D','E','F','G','H'].map(p => {
+        // デフォルトスタイル（定義外の問題用）
+        const style = problemStyles[p] || { bg: '#000000', border: '#000000' };
+        return {
+            label: `Problem ${p}`,
+            data: [],
+            backgroundColor: style.bg,
+            borderColor: style.border, // 枠線の色を追加
+            borderWidth: 1,            // 枠線の太さを追加（Aを見えるようにする）
+            pointRadius: 6,
+            pointHoverRadius: 8
+        };
+    });
+    // ▲▲▲ 色設定の変更箇所ここまで ▲▲▲
 
     parsedData.forEach((row, index) => {
         row.problems.forEach(p => {
             const datasetIndex = datasets.findIndex(ds => ds.label === `Problem ${p.probName}`);
             if (datasetIndex !== -1) {
                 datasets[datasetIndex].data.push({
-                    x: p.visualX, // ★ここでは変換後の座標を使う
+                    x: p.visualX,
                     y: yLabels[index],
-                    originalTime: p.label // ツールチップ用に元の時間を保持
+                    originalTime: p.label
                 });
             }
         });
     });
 
-    // X軸の目盛りをカスタム生成
-    // 表示したい時間のリスト (0.5, 1, 2... 10 ... 20, 30... 100)
+    // X軸の目盛り用データ生成
     const targetTicksTime = [0.5, 1, 2, 5, 10, 20, 30, 45, 60, 80, 100];
-    // それを座標に変換したリスト
     const targetTicksVisual = targetTicksTime.map(t => ({ 
         val: timeToVisual(t), 
         label: t === 0.5 ? 'Start' : t.toString() 
@@ -232,29 +206,22 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
             maintainAspectRatio: false,
             scales: {
                 x: {
-                    type: 'linear', // 内部的にはリニア（0-100）として扱う
+                    type: 'linear',
                     position: 'bottom',
                     title: { display: true, text: '経過時間 (分)' },
                     min: 0,
                     max: 100,
-                    
-                    // 目盛りの設定
                     afterBuildTicks: function(axis) {
-                        // 自動計算された目盛りを捨てて、自分で計算した位置に固定する
                         axis.ticks = targetTicksVisual.map(t => ({value: t.val}));
                     },
                     ticks: {
-                        // 座標(v)に対応するラベルを表示
                         callback: function(value, index) {
-                            // 近い目盛りを探してそのラベルを返す
                             const match = targetTicksVisual.find(t => Math.abs(t.val - value) < 1);
                             return match ? match.label : '';
                         }
                     },
                     grid: {
-                        // 10分のライン（境界線）を少し太くする演出
                         lineWidth: function(context) {
-                            // 座標が SPLIT_POS (33.33) 付近なら太く
                             if (Math.abs(context.tick.value - SPLIT_POS) < 1) return 2;
                             return 1;
                         }
@@ -270,7 +237,6 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            // ツールチップには「変換前の本当の時間」を表示
                             return `${context.dataset.label}: ${context.raw.originalTime}`;
                         }
                     }
@@ -278,15 +244,10 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
                 legend: {
                     position: 'bottom',
                     labels: { boxWidth: 10, padding: 20 }
-                },
-                // 10分の位置に縦線を引く注釈（点線）
-                annotation: {
-                    // Chart.js annotation pluginがあれば使えるが今回は標準機能のグリッド太線化で対応
                 }
             }
         }
     });
-
 </script>
 
 </body>
