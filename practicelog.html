@@ -78,30 +78,27 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
     }
 
     const tableBody = document.querySelector("#log-table tbody");
-    
-    // 空行を除去して配列化
     const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
 
-    // データをパースしてオブジェクトの配列にする
     const parsedData = lines.map(line => {
         const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
         if (!match) return null;
         
         const contest = match[1];
-        const dateRaw = new Date(match[2]);
+        // 表示用: 元の文字列から直接日付部分(YYYY-MM-DD)だけ切り出す（タイムゾーン変換回避）
+        const dateDisplay = match[2].split('T')[0];
+        // ソート用: Dateオブジェクト化しておく
+        const dateObj = new Date(match[2]); 
+        
         const fullDetail = match[3];
 
-        return { contest, dateRaw, fullDetail };
+        return { contest, dateDisplay, dateObj, fullDetail };
     }).filter(item => item !== null);
 
-    // ★ここで日付順（新しい順）にソートしています★
-    parsedData.sort((a, b) => b.dateRaw - a.dateRaw);
+    // 日付順（新しい順）にソート
+    parsedData.sort((a, b) => b.dateObj - a.dateObj);
 
-    // 描画処理
     parsedData.forEach(item => {
-        // 日付を読みやすく整形 (YYYY-MM-DD)
-        const dateStr = item.dateRaw.toISOString().split('T')[0];
-
         // 詳細部分からPerfと完数を抽出
         const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
         const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
@@ -114,7 +111,7 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td class="date-cell">${dateStr}</td>
+            <td class="date-cell">${item.dateDisplay}</td>
             <td><a href="https://atcoder.jp/contests/${item.contest}" target="_blank" style="text-decoration:none; color:#333; font-weight:bold;">${item.contest.toUpperCase()}</a></td>
             <td>
                 ${solved}完 <span class="${getPerfClass(perf)}">Perf:${perf}</span>
