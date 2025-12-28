@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>過去問バチャログ</title>
+    <title>競プロ精進ログ</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 0 10px; color: #333; }
         h1 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
         
+        /* グラフ用コンテナ */
+        .chart-container { position: relative; height: 300px; width: 100%; margin-bottom: 40px; }
+
         /* テーブルのデザイン */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
@@ -24,23 +28,26 @@
         .perf-orange { color: #FF8000; font-weight: bold; }
         .perf-red { color: #FF0000; font-weight: bold; }
 
-        /* 詳細列の見た目 */
         .details { font-family: Consolas, monospace; font-size: 0.9em; color: #555; }
         
-        /* スマホ対応 */
         @media (max-width: 600px) {
             th, td { display: block; width: 100%; box-sizing: border-box; }
-            th { display: none; } /* スマホではヘッダーを隠す */
+            th { display: none; }
             td { border: none; padding: 5px 10px; }
             tr { border-bottom: 1px solid #ccc; display: block; margin-bottom: 10px; padding-bottom: 10px; }
             .date-cell { color: #888; font-size: 0.8em; }
+            .chart-container { height: 400px; } /* スマホは少し縦長に */
         }
     </style>
 </head>
 <body>
 
     <h1>Virtual Contest Log</h1>
-    <div id="stats"></div>
+    
+    <div class="chart-container">
+        <canvas id="timelineChart"></canvas>
+    </div>
+
     <table id="log-table">
         <thead>
             <tr>
@@ -50,12 +57,11 @@
                 <th>Details</th>
             </tr>
         </thead>
-        <tbody>
-            </tbody>
+        <tbody></tbody>
     </table>
 
 <script>
-    // ▼ここに新しいログを追記していくだけでOK▼
+    // ▼データ入力欄▼
     const csvData = `
 abc251,2025-12-26T20:06:03.941018,"5完 (Perf:1687) [A:1:35, B:4:38, C:9:15, D -(WA1), E:69:55, F:93:29]"
 abc364,2025-12-27T09:30:37.886226,"5完 (Perf:1563) [A:4:21, B:17:03 (WA1), C:14:37, D:46:26 (WA1), E:70:37 (WA3)]"
@@ -65,7 +71,36 @@ abc237,2025-12-28T08:02:02.248984,"5完 (Perf:1641) [A:1:58, B:4:34, C:14:03, D:
 abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:21:26 (WA1), E:34:38, F:52:19 (WA1)]"
     `;
 
-    // AtCoderの色判定関数
+    // --- データ処理 ---
+    const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
+    const parsedData = lines.map(line => {
+        const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
+        if (!match) return null;
+        
+        const contest = match[1].toUpperCase();
+        const dateDisplay = match[2].split('T')[0];
+        const dateObj = new Date(match[2]); 
+        const fullDetail = match[3];
+
+        // 問題ごとのタイムを抽出
+        const problems = [];
+        // 正規表現: アルファベット1文字 + 時間(mm:ss) を探す
+        const problemMatches = fullDetail.matchAll(/([A-Z]):(\d+):(\d+)/g);
+        for (const m of problemMatches) {
+            const probName = m[1];
+            const minutes = parseInt(m[2]) + parseInt(m[3]) / 60;
+            const label = `${m[2]}:${m[3]}`;
+            problems.push({ probName, minutes, label });
+        }
+
+        return { contest, dateDisplay, dateObj, fullDetail, problems };
+    }).filter(item => item !== null);
+
+    // 日付順（新しい順）にソート
+    parsedData.sort((a, b) => b.dateObj - a.dateObj);
+
+
+    // --- テーブル描画 ---
     function getPerfClass(perf) {
         if (perf < 400) return 'perf-gray';
         if (perf < 800) return 'perf-brown';
@@ -78,48 +113,105 @@ abc271,2025-12-28T17:28:45.925569,"6完 (Perf:2159) [A:2:13, B:4:54, C:9:16, D:2
     }
 
     const tableBody = document.querySelector("#log-table tbody");
-    const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
-
-    const parsedData = lines.map(line => {
-        const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
-        if (!match) return null;
-        
-        const contest = match[1];
-        // 表示用: 元の文字列から直接日付部分(YYYY-MM-DD)だけ切り出す（タイムゾーン変換回避）
-        const dateDisplay = match[2].split('T')[0];
-        // ソート用: Dateオブジェクト化しておく
-        const dateObj = new Date(match[2]); 
-        
-        const fullDetail = match[3];
-
-        return { contest, dateDisplay, dateObj, fullDetail };
-    }).filter(item => item !== null);
-
-    // 日付順（新しい順）にソート
-    parsedData.sort((a, b) => b.dateObj - a.dateObj);
-
     parsedData.forEach(item => {
-        // 詳細部分からPerfと完数を抽出
         const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
         const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
-        
         const solvedMatch = item.fullDetail.match(/(\d+)完/);
         const solved = solvedMatch ? solvedMatch[1] : "-";
-
-        // []の中身だけを取り出す
         const detailText = item.fullDetail.match(/\[(.*)\]/)[1];
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td class="date-cell">${item.dateDisplay}</td>
-            <td><a href="https://atcoder.jp/contests/${item.contest}" target="_blank" style="text-decoration:none; color:#333; font-weight:bold;">${item.contest.toUpperCase()}</a></td>
-            <td>
-                ${solved}完 <span class="${getPerfClass(perf)}">Perf:${perf}</span>
-            </td>
+            <td><a href="https://atcoder.jp/contests/${item.contest.toLowerCase()}" target="_blank" style="text-decoration:none; color:#333; font-weight:bold;">${item.contest}</a></td>
+            <td>${solved}完 <span class="${getPerfClass(perf)}">Perf:${perf}</span></td>
             <td class="details">${detailText}</td>
         `;
         tableBody.appendChild(tr);
     });
+
+    // --- グラフ描画 (Chart.js) ---
+    const ctx = document.getElementById('timelineChart').getContext('2d');
+    
+    // Y軸のラベル（コンテスト名 + 日付）
+    const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
+
+    // データセットの準備 (A, B, C... ごとにシリーズを作る)
+    const problemColors = {
+        'A': '#888888', // 灰
+        'B': '#8d6e63', // 茶系
+        'C': '#66bb6a', // 緑系
+        'D': '#4dd0e1', // 水色系
+        'E': '#29b6f6', // 青系
+        'F': '#fdd835', // 黄色系
+        'G': '#ffa726', // オレンジ
+        'H': '#ef5350'  // 赤
+    };
+
+    // A~Hまでのデータセット枠を作成
+    const datasets = ['A','B','C','D','E','F','G','H'].map(p => ({
+        label: `Problem ${p}`,
+        data: [],
+        backgroundColor: problemColors[p] || '#000',
+        pointRadius: 6,
+        pointHoverRadius: 8
+    }));
+
+    // データをChart.js形式にマッピング
+    parsedData.forEach((row, index) => {
+        row.problems.forEach(p => {
+            const datasetIndex = datasets.findIndex(ds => ds.label === `Problem ${p.probName}`);
+            if (datasetIndex !== -1) {
+                datasets[datasetIndex].data.push({
+                    x: p.minutes, 
+                    y: yLabels[index], // Y軸のカテゴリ
+                    timeLabel: p.label // ツールチップ用
+                });
+            }
+        });
+    });
+
+    // グラフ生成
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    title: { display: true, text: '経過時間 (分)' },
+                    min: 0,
+                    suggestedMax: 100 // ABCは100分
+                },
+                y: {
+                    type: 'category',
+                    offset: true, // 上下に余白を持たせる
+                    grid: { color: '#f0f0f0' }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const pName = context.dataset.label;
+                            const time = context.raw.timeLabel;
+                            return `${pName}: ${time}`;
+                        }
+                    }
+                },
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 10, padding: 20 }
+                }
+            }
+        }
+    });
+
 </script>
 
 </body>
