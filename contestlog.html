@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <title>参加コンテストログ</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 0 10px; color: #333; }
+        h1 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        
+        /* グラフ用コンテナ */
+        .chart-container { position: relative; height: 300px; width: 100%; margin-bottom: 40px; }
+
+        /* テーブルのデザイン */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f4f4f4; white-space: nowrap; }
+        tr:hover { background-color: #f9f9f9; }
+
+        /* パフォーマンスの色定義 */
+        .perf-gray { color: #808080; font-weight: bold; }
+        .perf-brown { color: #804000; font-weight: bold; }
+        .perf-green { color: #008000; font-weight: bold; }
+        .perf-cyan { color: #00C0C0; font-weight: bold; }
+        .perf-blue { color: #0000FF; font-weight: bold; }
+        .perf-yellow { color: #C0C000; font-weight: bold; }
+        .perf-orange { color: #FF8000; font-weight: bold; }
+        .perf-red { color: #FF0000; font-weight: bold; }
+
+        .details { font-family: Consolas, monospace; font-size: 0.9em; color: #555; }
+        
+        @media (max-width: 600px) {
+            th, td { display: block; width: 100%; box-sizing: border-box; }
+            th { display: none; }
+            td { border: none; padding: 5px 10px; }
+            tr { border-bottom: 1px solid #ccc; display: block; margin-bottom: 10px; padding-bottom: 10px; }
+            .date-cell { color: #888; font-size: 0.8em; }
+            .chart-container { height: 400px; } /* スマホは少し縦長に */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Virtual Contest Log</h1>
+    
+    <div class="chart-container">
+        <canvas id="timelineChart"></canvas>
+    </div>
+
+    <table id="log-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Contest</th>
+                <th>Result</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+<script>
+    // ▼データ入力欄▼
+    const csvData = `
+abc439,2026-01-03T21:00:01.878889,"5完 (Perf:1333) [A:1:31, B:5:00, C:9:55, D:17:59, E:64:24 (WA3)]"
+    `;
+
+    // --- 設定: 境界線と比率 ---
+    const SPLIT_TIME = 10;     // ここまで対数（分）
+    const MAX_TIME = 100;      // コンテスト終了時間（分）
+    const SPLIT_POS = 20.0;   // 画面上の境界位置（％）
+
+    // --- 座標変換関数 (省略せず記載) ---
+    function timeToVisual(t) {
+        if (t <= 0) return 0;
+        const minLogTime = 0.5; 
+        if (t <= SPLIT_TIME) {
+            const safeT = Math.max(t, minLogTime);
+            const logMin = Math.log10(minLogTime);
+            const logMax = Math.log10(SPLIT_TIME);
+            const logT = Math.log10(safeT);
+            const ratio = (logT - logMin) / (logMax - logMin);
+            return ratio * SPLIT_POS;
+        } else {
+            const ratio = (t - SPLIT_TIME) / (MAX_TIME - SPLIT_TIME);
+            return SPLIT_POS + (ratio * (100 - SPLIT_POS));
+        }
+    }
+
+    // --- データ処理 (省略せず記載) ---
+    const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
+    const parsedData = lines.map(line => {
+        const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
+        if (!match) return null;
+        const contest = match[1].toUpperCase();
+        const dateDisplay = match[2].split('T')[0];
+        const dateObj = new Date(match[2]); 
+        const fullDetail = match[3];
+        const problems = [];
+        const problemMatches = fullDetail.matchAll(/([A-Z]):(\d+):(\d+)/g);
+        for (const m of problemMatches) {
+            problems.push({ 
+                probName: m[1], 
+                minutes: parseInt(m[2]) + parseInt(m[3]) / 60,
+                visualX: timeToVisual(parseInt(m[2]) + parseInt(m[3]) / 60),
+                label: `${m[2]}:${m[3]}`
+            });
+        }
+        return { contest, dateDisplay, dateObj, fullDetail, problems };
+    }).filter(item => item !== null);
+    parsedData.sort((a, b) => b.dateObj - a.dateObj);
+
+    // --- テーブル描画 (省略せず記載) ---
+    function getPerfClass(perf) {
+        if (perf < 400) return 'perf-gray';
+        if (perf < 800) return 'perf-brown';
+        if (perf < 1200) return 'perf-green';
+        if (perf < 1600) return 'perf-cyan';
+        if (perf < 2000) return 'perf-blue';
+        if (perf < 2400) return 'perf-yellow';
+        if (perf < 2800) return 'perf-orange';
+        return 'perf-red';
+    }
+    const tableBody = document.querySelector("#log-table tbody");
+    parsedData.forEach(item => {
+        const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
+        const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
+        const solvedMatch = item.fullDetail.match(/(\d+)完/);
+        const solved = solvedMatch ? solvedMatch[1] : "-";
+        const detailText = item.fullDetail.match(/\[(.*)\]/)[1];
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td class="date-cell">${item.dateDisplay}</td>
+            <td><a href="https://atcoder.jp/contests/${item.contest.toLowerCase()}" target="_blank" style="text-decoration:none; color:#333; font-weight:bold;">${item.contest}</a></td>
+            <td>${solved}完 <span class="${getPerfClass(perf)}">Perf:${perf}</span></td>
+            <td class="details">${detailText}</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+
+    // --- グラフ描画 (Chart.js) ---
+    const ctx = document.getElementById('timelineChart').getContext('2d');
+    const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
+
+    // ▼▼▼ 色設定の変更箇所 ▼▼▼
+    // A=白(枠あり), B=灰, C=茶, D=緑... のスタイル定義
+    const problemStyles = {
+        'A': { bg: '#ffffff', border: '#888888' }, // 白（枠はグレー）
+        'B': { bg: '#808080', border: '#808080' }, // 灰
+        'C': { bg: '#804000', border: '#804000' }, // 茶
+        'D': { bg: '#008000', border: '#008000' }, // 緑
+        'E': { bg: '#00C0C0', border: '#00C0C0' }, // 水
+        'F': { bg: '#0000FF', border: '#0000FF' }, // 青
+        'G': { bg: '#C0C000', border: '#C0C000' }, // 黄
+        'H': { bg: '#FF8000', border: '#FF8000' }  // 橙
+    };
+
+    const datasets = ['A','B','C','D','E','F','G','H'].map(p => {
+        // デフォルトスタイル（定義外の問題用）
+        const style = problemStyles[p] || { bg: '#000000', border: '#000000' };
+        return {
+            label: `Problem ${p}`,
+            data: [],
+            backgroundColor: style.bg,
+            borderColor: style.border, // 枠線の色を追加
+            borderWidth: 1,            // 枠線の太さを追加（Aを見えるようにする）
+            pointRadius: 6,
+            pointHoverRadius: 8
+        };
+    });
+    // ▲▲▲ 色設定の変更箇所ここまで ▲▲▲
+
+    parsedData.forEach((row, index) => {
+        row.problems.forEach(p => {
+            const datasetIndex = datasets.findIndex(ds => ds.label === `Problem ${p.probName}`);
+            if (datasetIndex !== -1) {
+                datasets[datasetIndex].data.push({
+                    x: p.visualX,
+                    y: yLabels[index],
+                    originalTime: p.label
+                });
+            }
+        });
+    });
+
+    // X軸の目盛り用データ生成
+    const targetTicksTime = [0.5, 1, 2, 5, 10, 20, 30, 45, 60, 80, 100];
+    const targetTicksVisual = targetTicksTime.map(t => ({ 
+        val: timeToVisual(t), 
+        label: t === 0.5 ? 'Start' : t.toString() 
+    }));
+
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    title: { display: true, text: '経過時間 (分)' },
+                    min: 0,
+                    max: 100,
+                    afterBuildTicks: function(axis) {
+                        axis.ticks = targetTicksVisual.map(t => ({value: t.val}));
+                    },
+                    ticks: {
+                        callback: function(value, index) {
+                            const match = targetTicksVisual.find(t => Math.abs(t.val - value) < 1);
+                            return match ? match.label : '';
+                        }
+                    },
+                    grid: {
+                        lineWidth: function(context) {
+                            if (Math.abs(context.tick.value - SPLIT_POS) < 1) return 2;
+                            return 1;
+                        }
+                    }
+                },
+                y: {
+                    type: 'category',
+                    offset: true,
+                    grid: { color: '#f0f0f0' }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw.originalTime}`;
+                        }
+                    }
+                },
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 10, padding: 20 }
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
