@@ -12,6 +12,10 @@ ABC439 "5完 (Perf:1339) [A:1:31, B:5:00, C:9:55, D:17:59, E:64:24 (WA3)]"
 * [コンテスト参加ログ](./contestlog.html)
 ## 📝 AtCoder練習記録
 * [過去問バチャログ](./practicelog.html)
+* 2026 - 45日チャレンジ Season1 (1/2 ~ 2/15)
+  * バチャ6本
+  * rated1本
+  
 ## 👤 About
 * **Name**: omochi_gyuhi
 * **Interest**: Rust,　(Python), A水H黄
