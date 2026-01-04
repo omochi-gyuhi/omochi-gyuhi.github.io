@@ -31,6 +31,24 @@
 
         .details { font-family: Consolas, monospace; font-size: 0.9em; color: #555; }
         
+        /* ▼▼▼ 追加: フッターのスタイル ▼▼▼ */
+        footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+        }
+        footer a {
+            text-decoration: none;
+            color: #555;
+            font-size: 14px;
+        }
+        footer a:hover {
+            color: #000;
+            text-decoration: underline;
+        }
+        /* ▲▲▲ 追加ここまで ▲▲▲ */
+
         @media (max-width: 600px) {
             th, td { display: block; width: 100%; box-sizing: border-box; }
             th { display: none; }
@@ -61,7 +79,10 @@
         <tbody></tbody>
     </table>
 
-<script>
+    <footer>
+        <a href="index.html">&larr; Indexに戻る</a>
+    </footer>
+    <script>
     // ▼データ入力欄▼
     const csvData = `
 abc251,2025-12-26T20:06:03.941018,"5完 (Perf:1687) [A:1:35, B:4:38, C:9:15, D -(WA1), E:69:55, F:93:29]"
@@ -85,9 +106,9 @@ abc363,2026-01-04T13:46:48.416577,"5完 (Perf:1568) [A:1:05, B:4:26, C:17:20, D:
     `;
 
     // --- 設定: 境界線と比率 ---
-    const SPLIT_TIME = 10;     // ここまで対数（分）
-    const MAX_TIME = 100;      // コンテスト終了時間（分）
-    const SPLIT_POS = 20.0;   // 画面上の境界位置（％）
+    const SPLIT_TIME = 10;      // ここまで対数（分）
+    const MAX_TIME = 100;       // コンテスト終了時間（分）
+    const SPLIT_POS = 20.0;    // 画面上の境界位置（％）
 
     // --- 座標変換関数 (省略せず記載) ---
     function timeToVisual(t) {
