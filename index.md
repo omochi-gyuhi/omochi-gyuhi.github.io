@@ -20,8 +20,9 @@ ABC439 "5完 (Perf:1339) [A:1:31, B:5:00, C:9:55, D:17:59, E:64:24 (WA3)]"
   * ABC: (+11)
   
 ## 👤 About
-* **Name**: omochi_gyuhi
-* **Interest**: Rust,　(Python), A水H黄
+* **ID**: omochi_gyuhi
+* **Languages**: Rust,　(Python)
+* **Rating**: A水H黄
 * **Links**: [Twitter](https://twitter.com/omochi_gyuhi)
 
 ---
