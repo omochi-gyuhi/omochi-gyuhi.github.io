@@ -3,7 +3,7 @@ layout: default
 title: Home
 ---
 
-# AtCoderログ
+# おもち（求肥）AtCoderログ
 AtCoderの学習記録を置く場所です。
 
 ## 📌 最新のAtCoder参加記録
