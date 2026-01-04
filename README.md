@@ -1,3 +1,3 @@
 # omochi-gyuhi.github.io
 blog
-* [Home](./index.html)
+* [Home](https://omochi-gyuhi.github.io/)
