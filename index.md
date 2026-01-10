@@ -21,7 +21,7 @@ AtCoderの学習記録を置く場所です。
   * バチャ: 24本
   * ADT: 1本
   * rated: 2本
-  * ABC: (+11)
+  * ABC: (-3)
   
 ## 👤 About
 * **ID**: omochi_gyuhi
