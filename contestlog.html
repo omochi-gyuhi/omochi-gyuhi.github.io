@@ -181,7 +181,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     // 一番上(2)にARC212を表示したいので、labels配列の末尾(index 2)をARC212にする必要があります。
     // そのため、parsedDataを反転（古い順）させた配列をラベルとして定義します。
     // labels = [ABC439, ABC440, ARC212] となり、ARC212が一番上になります。
-    const graphYAxisLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`).reverse();
+    const graphYAxisLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
 
     // ABC用スタイル
     const problemStylesABC = {
