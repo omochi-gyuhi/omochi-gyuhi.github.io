@@ -137,8 +137,8 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         return { contest, contestType, dateDisplay, dateObj, fullDetail, problems };
     }).filter(item => item !== null);
 
-    // ★重要: データ自体を「最新順（降順）」にソートします
-    // これでテーブルもグラフも「リストの先頭＝最新」になります
+    // 1. 基本データを「新しい順（降順）」にソートします
+    //    これでテーブルは上から [ARC212, ABC440, ABC439] になります。
     parsedData.sort((a, b) => b.dateObj - a.dateObj);
 
     // --- テーブル描画 ---
@@ -154,7 +154,6 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     }
 
     const tableBody = document.querySelector("#log-table tbody");
-    // parsedDataは既に最新順なので、そのままループ
     parsedData.forEach(item => {
         const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
         const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
@@ -176,8 +175,13 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     // --- グラフ描画 (Chart.js) ---
     const ctx = document.getElementById('timelineChart').getContext('2d');
     
-    // ラベル配列も「最新順」で作成
-    const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
+    // ★修正の要点★
+    // parsedData は [ARC212, ABC440, ABC439] (新しい順) です。
+    // Y軸は「下から上へ」インデックスが増えます(0, 1, 2)。
+    // 一番上(2)にARC212を表示したいので、labels配列の末尾(index 2)をARC212にする必要があります。
+    // そのため、parsedDataを反転（古い順）させた配列をラベルとして定義します。
+    // labels = [ABC439, ABC440, ARC212] となり、ARC212が一番上になります。
+    const graphYAxisLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`).reverse();
 
     // ABC用スタイル
     const problemStylesABC = {
@@ -213,13 +217,17 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         };
     });
 
+    // データポイントの作成
+    // ここで y には "ARC212..." などの文字列を入れます。
+    // Chart.jsは graphYAxisLabels の中から一致する文字列を探して位置を決めます。
     parsedData.forEach((row, index) => {
+        const yLabel = `${row.contest} (${row.dateDisplay.slice(5)})`;
         row.problems.forEach(p => {
             const datasetIndex = datasets.findIndex(ds => ds.label === `Problem ${p.probName}`);
             if (datasetIndex !== -1) {
                 datasets[datasetIndex].data.push({
                     x: p.visualX,
-                    y: yLabels[index], // 最新順のラベル
+                    y: yLabel, 
                     originalTime: p.label,
                     contestType: row.contestType
                 });
@@ -252,7 +260,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     new Chart(ctx, {
         type: 'scatter',
         data: {
-            labels: yLabels, // これで軸の順序を明示
+            labels: graphYAxisLabels, // 【重要】ここを [古い...新しい] の順にする
             datasets: datasets
         },
         options: {
@@ -284,9 +292,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
                 y: {
                     type: 'category',
                     offset: true,
-                    // ★重要: reverse: true を設定
-                    // これにより、配列の0番目（最新）がグラフの「上」に来ます
-                    reverse: true,
+                    // reverseオプションは削除します（ラベル順序だけで制御するため）
                     grid: { color: '#f0f0f0' }
                 }
             },
