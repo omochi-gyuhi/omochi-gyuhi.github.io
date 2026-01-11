@@ -83,7 +83,7 @@
     </footer>
 
     <script>
-    // ▼データ入力欄 (改行を修正済み)▼
+    // ▼データ入力欄▼
     const csvData = `
 abc439,2026-01-03T21:00:01.878889,"5完 (Perf:1339) [A:1:31, B:5:00, C:9:55, D:17:59, E:64:24 (WA3)]"
 abc440,2026-01-10T21:00:02.012450,"4完 (Perf:1085) [A:1:32, B:3:04, C:94:28, D:59:47 (WA2)]"
@@ -115,7 +115,6 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     // --- データ処理 ---
     const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
     const parsedData = lines.map(line => {
-        // 正規表現でパース
         const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
         if (!match) return null;
 
@@ -124,7 +123,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         const dateObj = new Date(match[2]); 
         const fullDetail = match[3];
         
-        // ABCかARCかを判定 (AGC等も必要ならここで分岐)
+        // ABCかARCかを判定
         const contestType = contest.startsWith("ARC") ? "ARC" : "ABC";
 
         const problems = [];
@@ -140,7 +139,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         return { contest, contestType, dateDisplay, dateObj, fullDetail, problems };
     }).filter(item => item !== null);
 
-    // 日付順ソート (降順)
+    // テーブル用: 日付の新しい順 (降順)
     parsedData.sort((a, b) => b.dateObj - a.dateObj);
 
     // --- テーブル描画 ---
@@ -178,40 +177,41 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
 
     // --- グラフ描画 (Chart.js) ---
     const ctx = document.getElementById('timelineChart').getContext('2d');
-    const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
+    
+    // データセット用のラベル（各行の識別子）を作成
+    // parsedDataは新しい順だが、forEachでのデータ作成時に使用
+    const rowLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
 
-    // ABC用スタイル（標準）
+    // ★修正点: グラフのY軸ラベル順序を定義（古いものが先頭＝下に来るように反転）
+    const graphYAxisLabels = [...rowLabels].reverse();
+
+    // ABC用スタイル
     const problemStylesABC = {
-        'A': { bg: '#ffffff', border: '#888888' }, // Gray/White
-        'B': { bg: '#808080', border: '#808080' }, // Gray
-        'C': { bg: '#804000', border: '#804000' }, // Brown
-        'D': { bg: '#008000', border: '#008000' }, // Green
-        'E': { bg: '#00C0C0', border: '#00C0C0' }, // Cyan
-        'F': { bg: '#0000FF', border: '#0000FF' }, // Blue
-        'G': { bg: '#C0C000', border: '#C0C000' }, // Yellow
-        'H': { bg: '#FF8000', border: '#FF8000' }  // Orange
+        'A': { bg: '#ffffff', border: '#888888' },
+        'B': { bg: '#808080', border: '#808080' },
+        'C': { bg: '#804000', border: '#804000' },
+        'D': { bg: '#008000', border: '#008000' },
+        'E': { bg: '#00C0C0', border: '#00C0C0' },
+        'F': { bg: '#0000FF', border: '#0000FF' },
+        'G': { bg: '#C0C000', border: '#C0C000' },
+        'H': { bg: '#FF8000', border: '#FF8000' }
     };
 
-    // ARC用スタイル（難易度スライド）
-    // ARC A(300-400) -> ABC C/D (Brown)
-    // ARC B(500-600) -> ABC D/E (Green)
-    // ARC C(700-800) -> ABC E/F (Cyan)
+    // ARC用スタイル
     const problemStylesARC = {
-        'A': { bg: '#804000', border: '#804000' }, // Brown
-        'B': { bg: '#008000', border: '#008000' }, // Green
-        'C': { bg: '#00C0C0', border: '#00C0C0' }, // Cyan
-        'D': { bg: '#0000FF', border: '#0000FF' }, // Blue
-        'E': { bg: '#C0C000', border: '#C0C000' }, // Yellow
-        'F': { bg: '#FF8000', border: '#FF8000' }  // Orange
+        'A': { bg: '#804000', border: '#804000' },
+        'B': { bg: '#008000', border: '#008000' },
+        'C': { bg: '#00C0C0', border: '#00C0C0' },
+        'D': { bg: '#0000FF', border: '#0000FF' },
+        'E': { bg: '#C0C000', border: '#C0C000' },
+        'F': { bg: '#FF8000', border: '#FF8000' }
     };
 
-    // データセットの枠組みを作成
     const datasetLabels = ['A','B','C','D','E','F','G','H'];
     const datasets = datasetLabels.map(p => {
         return {
             label: `Problem ${p}`,
             data: [],
-            // デフォルト色 (ABC基準) だが、scriptable optionで上書きする
             backgroundColor: problemStylesABC[p] ? problemStylesABC[p].bg : '#000',
             borderColor: problemStylesABC[p] ? problemStylesABC[p].border : '#000',
             borderWidth: 1,
@@ -220,27 +220,25 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         };
     });
 
-    // データをデータセットに振り分け
     parsedData.forEach((row, index) => {
         row.problems.forEach(p => {
             const datasetIndex = datasets.findIndex(ds => ds.label === `Problem ${p.probName}`);
             if (datasetIndex !== -1) {
                 datasets[datasetIndex].data.push({
                     x: p.visualX,
-                    y: yLabels[index],
+                    y: rowLabels[index], // ここは文字列識別子を入れるだけでOK
                     originalTime: p.label,
-                    contestType: row.contestType // ここでタイプを保持させる
+                    contestType: row.contestType
                 });
             }
         });
     });
 
-    // 色決定ロジック
     function resolveColor(context, type) {
         const raw = context.raw;
-        if (!raw) return undefined; // 凡例など
+        if (!raw) return undefined;
         
-        const pLabel = context.dataset.label.split(' ')[1]; // "A", "B" etc.
+        const pLabel = context.dataset.label.split(' ')[1];
         const cType = raw.contestType || "ABC";
         
         let style;
@@ -292,18 +290,15 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
                 y: {
                     type: 'category',
                     offset: true,
+                    // ★ここでY軸の順序を強制適用する
+                    labels: graphYAxisLabels,
                     grid: { color: '#f0f0f0' }
                 }
             },
             elements: {
                 point: {
-                    // ここで動的に色を変える
-                    backgroundColor: function(context) {
-                        return resolveColor(context, 'bg');
-                    },
-                    borderColor: function(context) {
-                        return resolveColor(context, 'border');
-                    }
+                    backgroundColor: function(context) { return resolveColor(context, 'bg'); },
+                    borderColor: function(context) { return resolveColor(context, 'border'); }
                 }
             },
             plugins: {
@@ -319,13 +314,9 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
                     labels: { 
                         boxWidth: 10, 
                         padding: 20,
-                        // 凡例の色はABC基準（デフォルト）のままにする
                         generateLabels: function(chart) {
                             const defaults = Chart.defaults.plugins.legend.labels.generateLabels(chart);
-                            return defaults.map(label => {
-                                // データセット自体の色（ABC色）を使用
-                                return label;
-                            });
+                            return defaults.map(label => label);
                         }
                     }
                 }
