@@ -122,8 +122,6 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         const dateDisplay = match[2].split('T')[0];
         const dateObj = new Date(match[2]); 
         const fullDetail = match[3];
-        
-        // ABCかARCかを判定
         const contestType = contest.startsWith("ARC") ? "ARC" : "ABC";
 
         const problems = [];
@@ -139,10 +137,13 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         return { contest, contestType, dateDisplay, dateObj, fullDetail, problems };
     }).filter(item => item !== null);
 
-    // テーブル用: 日付の新しい順 (降順)
-    parsedData.sort((a, b) => b.dateObj - a.dateObj);
+    // ★重要変更点★
+    // グラフ描画のために「古い日付順（昇順）」でソートを確定させます。
+    // これにより、グラフのY軸（index 0）が最も古く、上に行くほど新しいデータになります。
+    parsedData.sort((a, b) => a.dateObj - b.dateObj);
 
     // --- テーブル描画 ---
+    // テーブルは「新しいものが上」が良いので、配列をコピーして逆転させてからループします。
     function getPerfClass(perf) {
         if (perf < 400) return 'perf-gray';
         if (perf < 800) return 'perf-brown';
@@ -155,13 +156,12 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     }
 
     const tableBody = document.querySelector("#log-table tbody");
-    parsedData.forEach(item => {
+    // reverse() は破壊的なのでスプレッド構文 [...parsedData] でコピーしてから反転
+    [...parsedData].reverse().forEach(item => {
         const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
         const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
-        
         const solvedMatch = item.fullDetail.match(/(\d+)完/);
         const solved = solvedMatch ? solvedMatch[1] : "-";
-        
         const detailTextMatch = item.fullDetail.match(/\[(.*)\]/);
         const detailText = detailTextMatch ? detailTextMatch[1] : item.fullDetail;
 
@@ -178,12 +178,9 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     // --- グラフ描画 (Chart.js) ---
     const ctx = document.getElementById('timelineChart').getContext('2d');
     
-    // データセット用のラベル（各行の識別子）を作成
-    // parsedDataは新しい順だが、forEachでのデータ作成時に使用
-    const rowLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
-
-    // ★修正点: グラフのY軸ラベル順序を定義（古いものが先頭＝下に来るように反転）
-    const graphYAxisLabels = [...rowLabels].reverse();
+    // Y軸のラベル配列を作成（parsedDataは古い順なので、この配列も[古...新]になります）
+    // Chart.jsのCategory軸は、配列の0番目を「下」に描画するので、これで正しい時系列（下から上へ）になります。
+    const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
 
     // ABC用スタイル
     const problemStylesABC = {
@@ -196,7 +193,6 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         'G': { bg: '#C0C000', border: '#C0C000' },
         'H': { bg: '#FF8000', border: '#FF8000' }
     };
-
     // ARC用スタイル
     const problemStylesARC = {
         'A': { bg: '#804000', border: '#804000' },
@@ -226,7 +222,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
             if (datasetIndex !== -1) {
                 datasets[datasetIndex].data.push({
                     x: p.visualX,
-                    y: rowLabels[index], // ここは文字列識別子を入れるだけでOK
+                    y: yLabels[index], // ここで「古い順」のラベルを指定
                     originalTime: p.label,
                     contestType: row.contestType
                 });
@@ -259,6 +255,8 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     new Chart(ctx, {
         type: 'scatter',
         data: {
+            // ここで明示的に全ラベルを渡すことで、Chart.jsが軸の順序をyLabels配列の通り(古->新)に固定します
+            labels: yLabels, 
             datasets: datasets
         },
         options: {
@@ -290,8 +288,6 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
                 y: {
                     type: 'category',
                     offset: true,
-                    // ★ここでY軸の順序を強制適用する
-                    labels: graphYAxisLabels,
                     grid: { color: '#f0f0f0' }
                 }
             },
