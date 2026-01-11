@@ -60,7 +60,7 @@
 </head>
 <body>
 
-    <h1>Virtual Contest Log</h1>
+    <h1>Contest Log</h1>
     
     <div class="chart-container">
         <canvas id="timelineChart"></canvas>
@@ -137,13 +137,11 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
         return { contest, contestType, dateDisplay, dateObj, fullDetail, problems };
     }).filter(item => item !== null);
 
-    // ★重要変更点★
-    // グラフ描画のために「古い日付順（昇順）」でソートを確定させます。
-    // これにより、グラフのY軸（index 0）が最も古く、上に行くほど新しいデータになります。
-    parsedData.sort((a, b) => a.dateObj - b.dateObj);
+    // ★重要: データ自体を「最新順（降順）」にソートします
+    // これでテーブルもグラフも「リストの先頭＝最新」になります
+    parsedData.sort((a, b) => b.dateObj - a.dateObj);
 
     // --- テーブル描画 ---
-    // テーブルは「新しいものが上」が良いので、配列をコピーして逆転させてからループします。
     function getPerfClass(perf) {
         if (perf < 400) return 'perf-gray';
         if (perf < 800) return 'perf-brown';
@@ -156,8 +154,8 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     }
 
     const tableBody = document.querySelector("#log-table tbody");
-    // reverse() は破壊的なのでスプレッド構文 [...parsedData] でコピーしてから反転
-    [...parsedData].reverse().forEach(item => {
+    // parsedDataは既に最新順なので、そのままループ
+    parsedData.forEach(item => {
         const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
         const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
         const solvedMatch = item.fullDetail.match(/(\d+)完/);
@@ -178,8 +176,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     // --- グラフ描画 (Chart.js) ---
     const ctx = document.getElementById('timelineChart').getContext('2d');
     
-    // Y軸のラベル配列を作成（parsedDataは古い順なので、この配列も[古...新]になります）
-    // Chart.jsのCategory軸は、配列の0番目を「下」に描画するので、これで正しい時系列（下から上へ）になります。
+    // ラベル配列も「最新順」で作成
     const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
 
     // ABC用スタイル
@@ -222,7 +219,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
             if (datasetIndex !== -1) {
                 datasets[datasetIndex].data.push({
                     x: p.visualX,
-                    y: yLabels[index], // ここで「古い順」のラベルを指定
+                    y: yLabels[index], // 最新順のラベル
                     originalTime: p.label,
                     contestType: row.contestType
                 });
@@ -255,8 +252,7 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
     new Chart(ctx, {
         type: 'scatter',
         data: {
-            // ここで明示的に全ラベルを渡すことで、Chart.jsが軸の順序をyLabels配列の通り(古->新)に固定します
-            labels: yLabels, 
+            labels: yLabels, // これで軸の順序を明示
             datasets: datasets
         },
         options: {
@@ -288,6 +284,9 @@ arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
                 y: {
                     type: 'category',
                     offset: true,
+                    // ★重要: reverse: true を設定
+                    // これにより、配列の0番目（最新）がグラフの「上」に来ます
+                    reverse: true,
                     grid: { color: '#f0f0f0' }
                 }
             },
