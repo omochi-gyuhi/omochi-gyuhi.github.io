@@ -10,8 +10,8 @@
         body { font-family: "Helvetica Neue", Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 0 10px; color: #333; }
         h1 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
         
-        /* グラフ用コンテナ */
-        .chart-container { position: relative; height: 300px; width: 100%; margin-bottom: 40px; }
+        /* グラフ用コンテナ: 高さは固定（例えば600px）に戻す */
+        .chart-container { position: relative; height: 600px; width: 100%; margin-bottom: 40px; }
 
         /* テーブルのデザイン */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
@@ -31,7 +31,6 @@
 
         .details { font-family: Consolas, monospace; font-size: 0.9em; color: #555; }
         
-        /* ▼▼▼ 追加: フッターのスタイル ▼▼▼ */
         footer {
             margin-top: 50px;
             padding-top: 20px;
@@ -47,7 +46,6 @@
             color: #000;
             text-decoration: underline;
         }
-        /* ▲▲▲ 追加ここまで ▲▲▲ */
 
         @media (max-width: 600px) {
             th, td { display: block; width: 100%; box-sizing: border-box; }
@@ -55,7 +53,7 @@
             td { border: none; padding: 5px 10px; }
             tr { border-bottom: 1px solid #ccc; display: block; margin-bottom: 10px; padding-bottom: 10px; }
             .date-cell { color: #888; font-size: 0.8em; }
-            .chart-container { height: 400px; } /* スマホは少し縦長に */
+            .chart-container { height: 500px; }
         }
     </style>
 </head>
@@ -127,12 +125,12 @@ abc432,2026-01-12T12:09:24.198743,"5完 (Perf:1659) [A:1:01, B:25:01 (WA1), C:22
 abc382,2026-01-12T15:05:18.253284,"4完 (Perf:1209) [A:1:47, B:3:56, C:21:18, D:35:01]"
     `;
 
-    // --- 設定: 境界線と比率 ---
+    // --- 設定 ---
     const SPLIT_TIME = 10;      // ここまで対数（分）
     const MAX_TIME = 100;       // コンテスト終了時間（分）
-    const SPLIT_POS = 20.0;    // 画面上の境界位置（％）
+    const SPLIT_POS = 20.0;     // 画面上の境界位置（％）
 
-    // --- 座標変換関数 (省略せず記載) ---
+    // --- 座標変換関数 ---
     function timeToVisual(t) {
         if (t <= 0) return 0;
         const minLogTime = 0.5; 
@@ -149,7 +147,7 @@ abc382,2026-01-12T15:05:18.253284,"4完 (Perf:1209) [A:1:47, B:3:56, C:21:18, D:
         }
     }
 
-    // --- データ処理 (省略せず記載) ---
+    // --- データ処理 ---
     const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
     const parsedData = lines.map(line => {
         const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
@@ -170,9 +168,13 @@ abc382,2026-01-12T15:05:18.253284,"4完 (Perf:1209) [A:1:47, B:3:56, C:21:18, D:
         }
         return { contest, dateDisplay, dateObj, fullDetail, problems };
     }).filter(item => item !== null);
+    
+    // 日付の新しい順（降順）にソート
     parsedData.sort((a, b) => b.dateObj - a.dateObj);
 
-    // --- テーブル描画 (省略せず記載) ---
+    // ★自動拡大を削除し、JSでの高さ設定を削除しました。
+
+    // --- テーブル描画 ---
     function getPerfClass(perf) {
         if (perf < 400) return 'perf-gray';
         if (perf < 800) return 'perf-brown';
@@ -189,7 +191,10 @@ abc382,2026-01-12T15:05:18.253284,"4完 (Perf:1209) [A:1:47, B:3:56, C:21:18, D:
         const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
         const solvedMatch = item.fullDetail.match(/(\d+)完/);
         const solved = solvedMatch ? solvedMatch[1] : "-";
-        const detailText = item.fullDetail.match(/\[(.*)\]/)[1];
+        
+        const detailTextMatch = item.fullDetail.match(/\[(.*)\]/);
+        const detailText = detailTextMatch ? detailTextMatch[1] : item.fullDetail;
+
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td class="date-cell">${item.dateDisplay}</td>
@@ -202,50 +207,49 @@ abc382,2026-01-12T15:05:18.253284,"4完 (Perf:1209) [A:1:47, B:3:56, C:21:18, D:
 
     // --- グラフ描画 (Chart.js) ---
     const ctx = document.getElementById('timelineChart').getContext('2d');
+    
+    // Y軸のラベル配列を作成
     const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
 
-    // ▼▼▼ 色設定の変更箇所 ▼▼▼
-    // A=白(枠あり), B=灰, C=茶, D=緑... のスタイル定義
+    // 色定義
     const problemStyles = {
-        'A': { bg: '#ffffff', border: '#888888' }, // 白（枠はグレー）
-        'B': { bg: '#808080', border: '#808080' }, // 灰
-        'C': { bg: '#804000', border: '#804000' }, // 茶
-        'D': { bg: '#008000', border: '#008000' }, // 緑
-        'E': { bg: '#00C0C0', border: '#00C0C0' }, // 水
-        'F': { bg: '#0000FF', border: '#0000FF' }, // 青
-        'G': { bg: '#C0C000', border: '#C0C000' }, // 黄
-        'H': { bg: '#FF8000', border: '#FF8000' }  // 橙
+        'A': { bg: '#ffffff', border: '#888888' },
+        'B': { bg: '#808080', border: '#808080' },
+        'C': { bg: '#804000', border: '#804000' },
+        'D': { bg: '#008000', border: '#008000' },
+        'E': { bg: '#00C0C0', border: '#00C0C0' },
+        'F': { bg: '#0000FF', border: '#0000FF' },
+        'G': { bg: '#C0C000', border: '#C0C000' },
+        'H': { bg: '#FF8000', border: '#FF8000' }
     };
 
     const datasets = ['A','B','C','D','E','F','G','H'].map(p => {
-        // デフォルトスタイル（定義外の問題用）
         const style = problemStyles[p] || { bg: '#000000', border: '#000000' };
         return {
             label: `Problem ${p}`,
             data: [],
             backgroundColor: style.bg,
-            borderColor: style.border, // 枠線の色を追加
-            borderWidth: 1,            // 枠線の太さを追加（Aを見えるようにする）
+            borderColor: style.border,
+            borderWidth: 1,
             pointRadius: 6,
             pointHoverRadius: 8
         };
     });
-    // ▲▲▲ 色設定の変更箇所ここまで ▲▲▲
 
+    // Y軸の値を文字列ではなく「インデックス番号(0,1,2...)」にする
     parsedData.forEach((row, index) => {
         row.problems.forEach(p => {
             const datasetIndex = datasets.findIndex(ds => ds.label === `Problem ${p.probName}`);
             if (datasetIndex !== -1) {
                 datasets[datasetIndex].data.push({
                     x: p.visualX,
-                    y: yLabels[index],
+                    y: index, // 行番号(Integer)を渡す
                     originalTime: p.label
                 });
             }
         });
     });
 
-    // X軸の目盛り用データ生成
     const targetTicksTime = [0.5, 1, 2, 5, 10, 20, 30, 45, 60, 80, 100];
     const targetTicksVisual = targetTicksTime.map(t => ({ 
         val: timeToVisual(t), 
@@ -284,14 +288,34 @@ abc382,2026-01-12T15:05:18.253284,"4完 (Perf:1209) [A:1:47, B:3:56, C:21:18, D:
                     }
                 },
                 y: {
-                    type: 'category',
-                    offset: true,
+                    type: 'linear',
+                    position: 'left',
+                    reverse: true, // 0(最新)を上にする
+                    min: -0.5,     // 余白確保
+                    max: parsedData.length - 0.5, // 余白確保
+                    ticks: {
+                        stepSize: 1,
+                        autoSkip: true, // 高さ固定のため、重なる場合はラベルを間引く
+                        callback: function(value) {
+                            if (value % 1 === 0 && value >= 0 && value < yLabels.length) {
+                                return yLabels[value];
+                            }
+                            return '';
+                        }
+                    },
                     grid: { color: '#f0f0f0' }
                 }
             },
             plugins: {
                 tooltip: {
+                    mode: 'nearest',
+                    intersect: true,
                     callbacks: {
+                        title: function(context) {
+                            if (!context || context.length === 0) return '';
+                            const index = Math.round(context[0].parsed.y);
+                            return yLabels[index];
+                        },
                         label: function(context) {
                             return `${context.dataset.label}: ${context.raw.originalTime}`;
                         }
