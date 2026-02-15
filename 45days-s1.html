@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <title>45日チャレンジSeason1</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 0 10px; color: #333; }
+        h1 { border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        
+        /* グラフ用コンテナ: 高さは固定（例えば600px）に戻す */
+        .chart-container { position: relative; height: 400px; width: 100%; margin-bottom: 40px; }
+
+        /* テーブルのデザイン */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f4f4f4; white-space: nowrap; }
+        tr:hover { background-color: #f9f9f9; }
+
+        /* パフォーマンスの色定義 */
+        .perf-gray { color: #808080; font-weight: bold; }
+        .perf-brown { color: #804000; font-weight: bold; }
+        .perf-green { color: #008000; font-weight: bold; }
+        .perf-cyan { color: #00C0C0; font-weight: bold; }
+        .perf-blue { color: #0000FF; font-weight: bold; }
+        .perf-yellow { color: #C0C000; font-weight: bold; }
+        .perf-orange { color: #FF8000; font-weight: bold; }
+        .perf-red { color: #FF0000; font-weight: bold; }
+
+        .details { font-family: Consolas, monospace; font-size: 0.9em; color: #555; }
+        
+        footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+        }
+        footer a {
+            text-decoration: none;
+            color: #555;
+            font-size: 14px;
+        }
+        footer a:hover {
+            color: #000;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            th, td { display: block; width: 100%; box-sizing: border-box; }
+            th { display: none; }
+            td { border: none; padding: 5px 10px; }
+            tr { border-bottom: 1px solid #ccc; display: block; margin-bottom: 10px; padding-bottom: 10px; }
+            .date-cell { color: #888; font-size: 0.8em; }
+            .chart-container { height: 500px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>45Days Challenge Log</h1>
+    
+    <div class="chart-container">
+        <canvas id="timelineChart"></canvas>
+    </div>
+
+    <table id="log-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Contest</th>
+                <th>Result</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <footer>
+        <a href="index.html">&larr; Indexに戻る</a>
+    </footer>
+    <script>
+    // ▼データ入力欄▼
+    const csvData = `
+abc279,2026-01-02T16:38:41.148553,"4完 (Perf:1195) [A:1:09, B:2:03, C:7:23, D:41:13]"
+abc349,2026-01-02T20:22:16.295117,"5完 (Perf:1455) [A:1:31, B:5:12, C:38:08 (WA1), D:55:03 (WA2), E:86:04 (WA1)]"
+abc296,2026-01-03T10:11:48.983400,"5完 (Perf:1745) [A:1:03, B:3:21, C:5:54, D:12:38, E:24:54]"
+abc265,2026-01-03T13:15:01.119500,"4完 (Perf:1300) [A:1:32, B:6:08, C:12:00, D:33:11 (WA1)]"
+abc213,2026-01-03T15:30:06.060342,"5完 (Perf:1985) [A:0:51, B:3:39, C:8:39, D:16:30, E:38:12]"
+abc337,2026-01-03T18:52:59.209845,"5完 (Perf:1641) [A:8:07, B:8:17, C:12:10, D:29:31 (WA1), E:44:16 (WA1)]"
+abc266,2026-01-04T07:24:42.226253,"6完 (Perf:2018) [A:1:10, B:2:47, C:8:21, D:21:02, E:33:12, F:38:30]"
+abc363,2026-01-04T13:46:48.416577,"5完 (Perf:1568) [A:1:05, B:4:26, C:17:20, D:44:25, E:69:54 (WA3)]"
+abc354,2026-01-04T17:19:58.375371,"5完 (Perf:1449) [A:1:47, B:5:20, C:29:14 (WA1), D:54:31 (WA1), E:81:45 (WA1)]"
+abc270,2026-01-04T20:12:46.448017,"6完 (Perf:1974) [A:0:44, B:9:04, C:15:18, D:51:35, E:59:10, F:80:57]"
+abc315,2026-01-05T18:01:04.778366,"5完 (Perf:1473) [A:1:42, B:5:20, C:14:05, D:40:43 (WA1), E:71:01 (WA4)]"
+abc284,2026-01-05T20:25:58.252092,"6完 (Perf:1686) [A:0:44, B:2:19, C:5:15, D:16:46 (WA1), E:23:30 (WA1), F:83:48]"
+abc314,2026-01-06T21:24:22.353555,"5完 (Perf:1829) [A:1:20, B:6:02, C:11:44, D:19:45, E:42:35]"
+abc231,2026-01-08T10:20:23.657797,"5完 (Perf:1737) [A:0:52, B:2:58, C:4:31, D:12:33, F:59:03]"
+abc245,2026-01-08T13:31:34.277382,"6完 (Perf:2102) [A:1:25, B:7:37 (WA1), C:7:00, D:19:08, E:41:48 (WA1), F:46:47]"
+abc435,2026-01-08T15:35:16.446832,"5完 (Perf:1297) [A:0:37, B:3:51, C:19:13 (WA2), D:18:14 (WA1), E:57:21]"
+abc350,2026-01-08T19:05:37.296620,"4完 (Perf:956) [A:2:28, B:4:09, C:62:57 (WA2), D:70:20 (WA1)]"
+abc417,2026-01-08T21:20:51.230443,"6完 (Perf:1808) [A:1:09, B:4:32, C:9:10 (WA1), D:52:07, E:32:54 (WA1), F:72:55]"
+abc301,2026-01-09T16:53:22.589210,"5完 (Perf:1886) [A:2:33, B:7:55, C:24:56, D:32:02, E:79:28 (WA1)]"
+abc387,2026-01-09T19:29:21.835390,"4完 (Perf:1462) [A:0:39, B:1:34, C:64:48, D:23:59]"
+abc408,2026-01-10T06:07:36.126760,"6完 (Perf:1736) [A:2:09, B:3:05, C:5:46, D:18:13, E:44:30, F:68:05]"
+abc379,2026-01-10T08:28:56.927834,"5完 (Perf:1553) [A:1:15, B:3:26, C:16:57, D:27:39 (WA2), E:46:11]"
+abc329,2026-01-10T11:10:39.621497,"6完 (Perf:2210) [A:0:32, B:1:49, C:4:48, D:8:06, E:32:22, F:43:59]"
+abc431,2026-01-10T13:00:14.498230,"5完 (Perf:1635) [A:1:02, B:3:39, C:9:29, D:16:24, E:55:19 (WA1)]"
+abc420,2026-01-11T06:43:13.961534,"5完 (Perf:1357) [A:0:49, B:6:47, C:10:37, D:22:04, E:29:05]"
+abc400,2026-01-11T10:31:43.612019,"5完 (Perf:1915) [A:0:53, B:3:14, C:8:20, D:22:44, E:43:53]"
+abc425,2026-01-11T17:16:04.887454,"5完 (Perf:1389) [A:2:03, B:12:44, C:24:24, D:65:37, E:82:23]"
+abc239,2026-01-12T09:18:18.281590,"5完 (Perf:1496) [A:1:51, B:4:12, C:8:28, D:19:54, E:39:33 (WA1)]"
+abc432,2026-01-12T12:09:24.198743,"5完 (Perf:1659) [A:1:01, B:25:01 (WA1), C:22:19, D:64:55 (WA1), E:96:47 (WA1)]"
+abc382,2026-01-12T15:05:18.253284,"4完 (Perf:1209) [A:1:47, B:3:56, C:21:18, D:35:01]"
+abc310,2026-01-13T18:00:26.742585,"5完 (Perf:1892) [A:1:33, B:8:38, C:11:20, D:31:42, E:40:04 (WA1)]"
+abc340,2026-01-14T19:09:17.452504,"5完 (Perf:1395) [A:1:26, B:4:32, C:11:31, D:23:34, E:45:36]"
+abc259,2026-01-15T18:02:15.832634,"4完 (Perf:1304) [A:3:51, B:10:57, C:19:06 (WA2), D:35:23]"
+abc293,2026-01-16T18:02:01.263978,"5完 (Perf:1555) [A:1:47, B:4:26, C:11:36, D:20:46, E:70:24]"
+abc277,2026-01-17T11:36:59.225106,"5完 (Perf:1607) [A:1:05, B:5:23, C:10:43, D:39:24 (WA1), E:50:20 (WA1)]"
+abc300,2026-01-17T16:04:01.528900,"5完 (Perf:1822) [A:1:08, B:4:25, C:12:20, D:20:31, E:36:57]"
+abc410,2026-01-18T07:46:50.755651,"6完 (Perf:1805) [A:0:58, B:7:29, C:11:07, D:20:18, E:29:33, F:94:52 (WA1)]"
+abc370,2026-01-18T10:27:33.657633,"4完 (Perf:1398) [A:9:06 (WA1), B:4:15, C:8:37, D:19:53]"
+abc222,2026-01-18T13:47:43.425372,"4完 (Perf:1406) [A:0:39, B:1:48, C:12:23, D:23:39 (WA1)]"
+abc386,2026-01-19T18:06:13.922370,"5完 (Perf:1843) [A:1:03, B:2:41, C:26:05 (WA1), D:28:43 (WA1), E:40:12]"
+abc427,2026-01-20T18:02:44.148421,"5完 (Perf:1569) [A:4:19, B:7:31, C:20:51, D:33:37, E:47:31]"
+abc276,2026-01-21T13:08:56.005503,"5完 (Perf:1439) [A:0:56, B:3:15, C:5:09, D:29:15 (WA2), E:40:30]"
+abc230,2026-01-21T19:12:46.506389,"5完 (Perf:1288) [A:1:21, B:2:47, C:12:23 (WA1), D:21:25 (WA2), E:69:44 (WA1)]"
+abc367,2026-01-22T18:30:59.346376,"5完 (Perf:1439) [A:2:49, B:5:52, C:10:15, D:19:36 (WA1), E:70:47]"
+abc240,2026-01-23T19:16:58.641649,"5完 (Perf:1353) [A:1:14, B:2:37, C:5:40, D:14:57, E:50:57]"
+abc378,2026-01-24T09:49:56.057866,"5完 (Perf:1338) [A:3:19, B:7:01, C:10:05, D:22:47, E:73:53 (WA1)]"
+abc433,2026-01-24T14:38:49.022707,"4完 (Perf:1419) [A:1:35, B:4:17, C:9:07, D:23:49]"
+abc321,2026-01-25T06:02:09.574531,"4完 (Perf:1378) [A:1:53, B:19:26 (WA1), C:18:51, D:23:40]"
+abc306,2026-01-26T19:27:59.251629,"6完 (Perf:0) [A:1:15, B:2:36, C:4:10, D:9:49, E:31:48, F:60:37]"
+abc346,2026-01-27T19:47:06.260142,"5完 (Perf:1381) [A:2:18, B:5:52, C:8:32, D:19:42 (WA2), E:41:11 (WA3)]"
+abc288,2026-01-28T19:21:47.208263,"4完 (Perf:1872) [A:0:55, B:2:29, C:3:58, E:69:24]"
+abc319,2026-01-29T19:38:22.493388,"5完 (Perf:1654) [A:2:24, B:6:21, C:34:02, D:46:05 (WA1), E:71:17]"
+abc369,2026-01-30T18:41:27.667209,"4完 (Perf:1061) [A:2:26, B:5:49, C:26:16 (WA1), D:32:45]"
+abc341,2026-01-31T07:54:31.417647,"6完 (Perf:1674) [A:1:09, B:3:59, C:9:45, D:24:44, E:49:03 (WA1), F:88:04]"
+abc328,2026-01-31T12:27:13.627092,"6完 (Perf:1785) [A:0:58, B:4:43, C:11:48 (WA1), D:15:43, E:45:46, F:62:24]"
+abc353,2026-02-01T06:54:21.918498,"5完 (Perf:1531) [A:1:03, B:5:24, C:16:22, D:31:44 (WA1), E:53:04]"
+abc383,2026-02-01T09:18:50.367480,"4完 (Perf:1386) [A:3:36, B:25:36 (WA1), C:17:54, D:35:42]"
+abc371,2026-02-01T12:53:16.318792,"5完 (Perf:1251) [A:4:20, B:6:53, C:79:27, D:56:31, E:61:38]"
+abc331,2026-02-01T16:45:05.715401,"5完 (Perf:1539) [A:5:02, B:8:01, C:10:47, D:38:25, E:57:21 (WA1)]"
+abc345,2026-02-02T18:25:34.658393,"4完 (Perf:1557) [A:4:17 (WA1), B:6:57, C:13:11 (WA1), D:61:51 (WA2)]"
+abc357,2026-02-03T04:41:57.391286,"5完 (Perf:1621) [A:3:56, B:6:29, C:17:23, D:34:12, E:59:22]"
+abc338,2026-02-03T17:12:50.468840,"5完 (Perf:1522) [A:1:34, B:3:31, C:22:18, D:50:26, E:75:37 (WA2)]"
+abc325,2026-02-04T04:27:39.755601,"5完 (Perf:1657) [A:1:53, B:11:11, C:19:31, D:35:57, E:54:30]"
+abc330,2026-02-04T17:11:42.121619,"5完 (Perf:1531) [A:1:12, B:4:24, C:11:00 (WA2), D:15:05 (WA1), E:24:18]"
+abc324,2026-02-05T04:47:38.532096,"5完 (Perf:1775) [A:2:08, B:4:32, C:15:39, D:25:17, E:33:18]"
+abc320,2026-02-05T17:43:53.059778,"5完 (Perf:1734) [A:0:57, B:8:25, C:17:30, D:34:31, E:42:57]"
+abc336,2026-02-06T03:27:18.700138,"5完 (Perf:1747) [A:2:42, B:3:41, C:7:15, D:19:54, E:69:13]"
+abc334,2026-02-06T17:21:05.363935,"5完 (Perf:1591) [A:0:58, B:16:02 (WA1), C:37:49, D:42:16, E:58:30]"
+abc374,2026-02-07T09:38:18.259860,"4完 (Perf:1395) [A:0:29, B:3:10, C:6:45, D:16:47]"
+abc416,2026-02-07T16:44:27.629155,"4完 (Perf:1226) [A:1:14, B:3:39, C:22:15, D:39:08]"
+abc261,2026-02-08T13:17:20.657991,"6完 (Perf:2300) [A:3:11, B:6:14, C:9:57, D:15:31, E:25:36, F:39:35]"
+abc252,2026-02-09T18:07:30.377511,"5完 (Perf:1531) [A:0:35, B:3:21, C:11:39, D:21:25, F:51:15]"
+abc295,2026-02-10T18:21:01.893900,"4完 (Perf:1431) [A:2:17, B:10:03, C:12:44, D:23:01 (WA1)]"
+abc399,2026-02-11T09:38:36.884340,"4完 (Perf:1211) [A:1:24, B:3:42, C:5:33, D:41:55 (WA4)]"
+abc384,2026-02-12T18:37:21.951901,"5完 (Perf:1703) [A:1:44, B:4:05, C:7:46, D:17:38 (WA1), E:29:56]"
+abc361,2026-02-13T18:15:28.320421,"5完 (Perf:1532) [A:0:52, B:5:00, C:29:28 (WA1), D:24:04, E:59:12 (WA1)]"
+abc360,2026-02-14T09:31:02.405554,"5完 (Perf:1796) [A:2:35, B:5:13, C:7:36, D:17:11, E:42:27 (WA1)]"
+abc274,2026-02-15T07:45:12.491618,"5完 (Perf:1874) [A:1:19, B:3:58, C:9:09, D:29:41, E:54:51]"
+abc439,2026-01-03T21:00:01.878889,"5完 (Perf:1339) [A:1:31, B:5:00, C:9:55, D:17:59, E:64:24 (WA3)]"
+abc440,2026-01-10T21:00:02.012450,"4完 (Perf:1085) [A:1:32, B:3:04, C:94:28, D:59:47 (WA2)]"
+arc212,2026-01-11T21:00:02.555304,"1完 (Perf:1089) [B:101:47]"
+abc441,2026-01-17T21:00:02.872723,"4完 (Perf:1084) [A:1:47, B:5:38, C:10:02, D:19:57]"
+abc442,2026-01-24T21:00:02.299010,"5完 (Perf:1249) [A:1:24, B:3:59, C:7:15, D:11:08, E:95:51 (WA2)]"
+abc443,2026-01-31T21:00:01.489975,"4完 (Perf:1185) [A:1:02, B:2:56, C:9:33, D:38:19 (WA1)]"
+abc444,2026-02-07T21:00:03.394104,"5完 (Perf:1462) [A:1:19, B:3:23, C:64:26 (WA1), D:16:02 (WA1), E:46:56 (WA1)]"
+abc445,2026-02-14T21:00:01.164662,"4完 (Perf:1176) [A:1:04, B:3:52, C:11:27, D:70:21 (WA1)]"
+    `;
+
+    // --- 設定 ---
+    const SPLIT_TIME = 10;      // ここまで対数（分）
+    const MAX_TIME = 100;       // コンテスト終了時間（分）
+    const SPLIT_POS = 20.0;     // 画面上の境界位置（％）
+
+    // --- 座標変換関数 ---
+    function timeToVisual(t) {
+        if (t <= 0) return 0;
+        const minLogTime = 0.5; 
+        if (t <= SPLIT_TIME) {
+            const safeT = Math.max(t, minLogTime);
+            const logMin = Math.log10(minLogTime);
+            const logMax = Math.log10(SPLIT_TIME);
+            const logT = Math.log10(safeT);
+            const ratio = (logT - logMin) / (logMax - logMin);
+            return ratio * SPLIT_POS;
+        } else {
+            const ratio = (t - SPLIT_TIME) / (MAX_TIME - SPLIT_TIME);
+            return SPLIT_POS + (ratio * (100 - SPLIT_POS));
+        }
+    }
+
+    // --- データ処理 ---
+    const lines = csvData.trim().split('\n').filter(line => line.trim() !== "");
+    const parsedData = lines.map(line => {
+        const match = line.match(/^([^,]+),([^,]+),"(.+)"$/);
+        if (!match) return null;
+        const contest = match[1].toUpperCase();
+        const dateDisplay = match[2].split('T')[0];
+        const dateObj = new Date(match[2]); 
+        const fullDetail = match[3];
+        const problems = [];
+        const problemMatches = fullDetail.matchAll(/([A-Z]):(\d+):(\d+)/g);
+        for (const m of problemMatches) {
+            problems.push({ 
+                probName: m[1], 
+                minutes: parseInt(m[2]) + parseInt(m[3]) / 60,
+                visualX: timeToVisual(parseInt(m[2]) + parseInt(m[3]) / 60),
+                label: `${m[2]}:${m[3]}`
+            });
+        }
+        return { contest, dateDisplay, dateObj, fullDetail, problems };
+    }).filter(item => item !== null);
+    
+    // 日付の新しい順（降順）にソート
+    parsedData.sort((a, b) => b.dateObj - a.dateObj);
+
+    // ★自動拡大を削除し、JSでの高さ設定を削除しました。
+
+    // --- テーブル描画 ---
+    function getPerfClass(perf) {
+        if (perf < 400) return 'perf-gray';
+        if (perf < 800) return 'perf-brown';
+        if (perf < 1200) return 'perf-green';
+        if (perf < 1600) return 'perf-cyan';
+        if (perf < 2000) return 'perf-blue';
+        if (perf < 2400) return 'perf-yellow';
+        if (perf < 2800) return 'perf-orange';
+        return 'perf-red';
+    }
+    const tableBody = document.querySelector("#log-table tbody");
+    parsedData.forEach(item => {
+        const perfMatch = item.fullDetail.match(/Perf:(\d+)/);
+        const perf = perfMatch ? parseInt(perfMatch[1]) : 0;
+        const solvedMatch = item.fullDetail.match(/(\d+)完/);
+        const solved = solvedMatch ? solvedMatch[1] : "-";
+        
+        const detailTextMatch = item.fullDetail.match(/\[(.*)\]/);
+        const detailText = detailTextMatch ? detailTextMatch[1] : item.fullDetail;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td class="date-cell">${item.dateDisplay}</td>
+            <td><a href="https://atcoder.jp/contests/${item.contest.toLowerCase()}" target="_blank" style="text-decoration:none; color:#333; font-weight:bold;">${item.contest}</a></td>
+            <td>${solved}完 <span class="${getPerfClass(perf)}">Perf:${perf}</span></td>
+            <td class="details">${detailText}</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+
+    // --- グラフ描画 (Chart.js) ---
+    const ctx = document.getElementById('timelineChart').getContext('2d');
+    
+    // Y軸のラベル配列を作成
+    const yLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
+
+    // 色定義
+    const problemStyles = {
+        'A': { bg: '#ffffff', border: '#888888' },
+        'B': { bg: '#808080', border: '#808080' },
+        'C': { bg: '#804000', border: '#804000' },
+        'D': { bg: '#008000', border: '#008000' },
+        'E': { bg: '#00C0C0', border: '#00C0C0' },
+        'F': { bg: '#0000FF', border: '#0000FF' },
+        'G': { bg: '#C0C000', border: '#C0C000' },
+        'H': { bg: '#FF8000', border: '#FF8000' }
+    };
+
+    const datasets = ['A','B','C','D','E','F','G','H'].map(p => {
+        const style = problemStyles[p] || { bg: '#000000', border: '#000000' };
+        return {
+            label: `Problem ${p}`,
+            data: [],
+            backgroundColor: style.bg,
+            borderColor: style.border,
+            borderWidth: 1,
+            pointRadius: 6,
+            pointHoverRadius: 8
+        };
+    });
+
+    // Y軸の値を文字列ではなく「インデックス番号(0,1,2...)」にする
+    parsedData.forEach((row, index) => {
+        row.problems.forEach(p => {
+            const datasetIndex = datasets.findIndex(ds => ds.label === `Problem ${p.probName}`);
+            if (datasetIndex !== -1) {
+                datasets[datasetIndex].data.push({
+                    x: p.visualX,
+                    y: index, // 行番号(Integer)を渡す
+                    originalTime: p.label
+                });
+            }
+        });
+    });
+
+    const targetTicksTime = [0.5, 1, 2, 5, 10, 20, 30, 45, 60, 80, 100];
+    const targetTicksVisual = targetTicksTime.map(t => ({ 
+        val: timeToVisual(t), 
+        label: t === 0.5 ? 'Start' : t.toString() 
+    }));
+
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    title: { display: true, text: '経過時間 (分)' },
+                    min: 0,
+                    max: 100,
+                    afterBuildTicks: function(axis) {
+                        axis.ticks = targetTicksVisual.map(t => ({value: t.val}));
+                    },
+                    ticks: {
+                        callback: function(value, index) {
+                            const match = targetTicksVisual.find(t => Math.abs(t.val - value) < 1);
+                            return match ? match.label : '';
+                        }
+                    },
+                    grid: {
+                        lineWidth: function(context) {
+                            if (Math.abs(context.tick.value - SPLIT_POS) < 1) return 2;
+                            return 1;
+                        }
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    reverse: true, // 0(最新)を上にする
+                    min: -0.5,     // 余白確保
+                    max: parsedData.length - 0.5, // 余白確保
+                    ticks: {
+                        stepSize: 1,
+                        autoSkip: true, // 高さ固定のため、重なる場合はラベルを間引く
+                        callback: function(value) {
+                            if (value % 1 === 0 && value >= 0 && value < yLabels.length) {
+                                return yLabels[value];
+                            }
+                            return '';
+                        }
+                    },
+                    grid: { color: '#f0f0f0' }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    mode: 'nearest',
+                    intersect: true,
+                    callbacks: {
+                        title: function(context) {
+                            if (!context || context.length === 0) return '';
+                            const index = Math.round(context[0].parsed.y);
+                            return yLabels[index];
+                        },
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw.originalTime}`;
+                        }
+                    }
+                },
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 10, padding: 20 }
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
