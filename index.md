@@ -7,6 +7,7 @@ title: Home
 AtCoderの学習記録を置く場所です。
 
 ## 📌 最新のAtCoder参加記録
+* ABC449 "3完 (Perf:922) [A:1:20, B:4:47, C:16:39 (WA1)]"
 * ABC448 "4完 (Perf:1306) [A:1:28, B:4:07, C:12:22, D:22:33]"
 * ABC447 "5完 (Perf:1141) [A:1:23, B:4:27, C:75:21, D:38:42 (WA3), E:50:24]"
 
@@ -17,10 +18,10 @@ AtCoderの学習記録を置く場所です。
 * [過去問バチャログ](./practicelog.html)
 * 2026 - 45日チャレンジ Season2 (3/3 ~ 4/16)
   * 開始: 1203
-  * 現在: 1214
-  * E埋め: 24
-  * rated: 1本
-  * ABC: +11
+  * 現在: 1188
+  * E埋め: 27
+  * rated: 2本
+  * ABC: -25
   * ARC:
 * 2026 - [45日チャレンジ Season1 (1/2 ~ 2/15)](./45days-s1.html)
   * 開始: 1227
@@ -35,7 +36,7 @@ AtCoderの学習記録を置く場所です。
 ## 👤 About
 * **ID**: omochi_gyuhi
 * **Languages**: Rust,　(Python)
-* **Rating**: A水H黄
+* **Rating**: A緑H黄
 * **Links**: [Twitter](https://twitter.com/omochi_gyuhi)
 
 ---
