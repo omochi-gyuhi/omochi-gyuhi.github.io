@@ -192,13 +192,8 @@ arc218,2026-05-03T21:00:00.646771,"1完 (Perf:1132) [A:53:09]"
     // --- グラフ描画 (Chart.js) ---
     const ctx = document.getElementById('timelineChart').getContext('2d');
     
-    // ★修正の要点★
-    // parsedData は [ARC212, ABC440, ABC439] (新しい順) です。
-    // Y軸は「下から上へ」インデックスが増えます(0, 1, 2)。
-    // 一番上(2)にARC212を表示したいので、labels配列の末尾(index 2)をARC212にする必要があります。
-    // そのため、parsedDataを反転（古い順）させた配列をラベルとして定義します。
-    // labels = [ABC439, ABC440, ARC212] となり、ARC212が一番上になります。
-    const graphYAxisLabels = parsedData.map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
+    // ★修正箇所1: 配列を反転させて古い順のラベルリストを作成
+    const graphYAxisLabels = [...parsedData].reverse().map(d => `${d.contest} (${d.dateDisplay.slice(5)})`);
 
     // ABC用スタイル
     const problemStylesABC = {
@@ -322,6 +317,10 @@ arc218,2026-05-03T21:00:00.646771,"1完 (Perf:1132) [A:53:09]"
             plugins: {
                 tooltip: {
                     callbacks: {
+                        // ★修正箇所2: ツールチップのタイトルをデータポイントのy値(コンテスト名)で固定
+                        title: function(context) {
+                            return context[0].raw.y;
+                        },
                         label: function(context) {
                             return `${context.dataset.label}: ${context.raw.originalTime}`;
                         }
